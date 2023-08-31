@@ -1,67 +1,50 @@
-import { FC, useEffect, useMemo, useState } from 'react';
+import { FC, useEffect } from 'react';
 
-import { IPokeResponse } from '../../types';
-import { baseInstance } from '../../utils';
+import { setCount, setInfinite } from '../../store/slices/pagination';
+import { useAppDispatch, useAppSelector } from '../../store';
 import { List } from '../../components/list';
-import { Pagination } from '../../components/pagination';
+import { usePokemonList } from '../../utils';
 
-const STEP = 20;
+import { ListContainer, PokemonContainer } from './styled';
 
-export const PokemonList: FC = () => {
-  const [pokeData, setPokeData] = useState<IPokeResponse | null>(null);
-  const [current, setCurrent] = useState(0);
+type ListProps = {
+  index?: number
+}
 
-  const total = useMemo(() => pokeData?.count ? pokeData.count: 0, [pokeData?.count]);
+export const PokemonList: FC<ListProps> = ({ index }) => {
+  const pagination = useAppSelector(state => state.pagination)
+  const dispatch = useAppDispatch()
 
-  const handleChangePage = async (url: string) => {
-    try {
-      const { status, data } = await baseInstance.get<IPokeResponse>(url);
-
-      if (status === 200 && data) {
-        setPokeData(data);
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const handleNext = () => {
-    setCurrent((cur) => cur + 1);
-
-    if (pokeData?.next) {
-      handleChangePage(pokeData.next);
-    }
-  };
-
-  const handlePrevious = () => {
-    setCurrent((cur) => cur - 1);
-
-    if (pokeData?.previous) {
-      handleChangePage(pokeData.previous);
-    }
-  };
-
-  const handleTogglePage = (page: number) => {
-    handleChangePage(`https://pokeapi.co/api/v2/ability/?limit=${STEP}&offset=${(page === 1) ? '' : (page * STEP) - STEP}`)
-    setCurrent(page - 1);
-  }
+  const { data, error, isLoading } = usePokemonList(
+    (index ?? pagination.index) * pagination.limit,
+    pagination.limit
+  )
 
   useEffect(() => {
-    handleChangePage('https://pokeapi.co/api/v2/ability');
-  }, []);
+    if (data) {
+      dispatch(setCount(data.count))
+      dispatch(setInfinite(false))
+    }
+  }, [data, dispatch])
+
+
+  if (isLoading || error || !data)
+    return (
+      <ListContainer>
+        {new Array(pagination.limit).fill(null).map((_, i) => (
+          <PokemonContainer/>
+        ))}
+      </ListContainer>
+    )
 
   return (
     <>
-      <h2>Покемоны</h2>
-      <List data={pokeData?.results || []} />
-      <Pagination
-        total={total}
-        offset={STEP}
-        current={current}
-        onNext={handleNext}
-        onPrevious={handlePrevious}
-        onTogglePage={handleTogglePage}
-      />
+      <List data={data?.results || []} />
+      {/*<ListContainer>*/}
+      {/*  {data.results.map(({ name }) => (*/}
+      {/*    <Pokemon key={name} name={name}></Pokemon>*/}
+      {/*  ))}*/}
+      {/*</ListContainer>*/}
     </>
   );
 }

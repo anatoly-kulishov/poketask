@@ -1,1 +1,0 @@
-export { PokePage } from "./poke";
