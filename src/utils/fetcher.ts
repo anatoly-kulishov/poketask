@@ -1,25 +1,29 @@
-import { setupCache } from 'axios-cache-interceptor';
-import { Ability, NamedAPIResourceList, Pokemon } from 'pokenode-ts';
-import axios from 'axios';
-import useSWR from 'swr';
+import { setupCache } from "axios-cache-interceptor";
+import axios from "axios";
+import useSWR from "swr";
+import {
+  Ability,
+  NamedAPIResourceList,
+  Pokemon,
+  PokemonClient,
+} from "pokenode-ts";
 
-export const baseInstance = setupCache(
+const api = setupCache(
   axios.create({
-    baseURL: 'https://pokeapi.co/api/v2',
+    baseURL: "https://pokeapi.co/api/v2",
     headers: {
-      'Content-Type': 'application/json'
-    }
+      "Content-Type": "application/json",
+    },
   })
 );
+api.interceptors.request.use();
 
-// const pokemonClient = new PokemonClient();
-
-baseInstance.interceptors.request.use();
+const pokemonClient = new PokemonClient();
 
 const fetcher =
   <T>() =>
     (url: string) =>
-      baseInstance.get<T>(url).then((res) => res.data);
+      api.get<T>(url).then((res) => res.data);
 
 const useList = (resource: string, offset = 0, limit = 20) =>
   useSWR(
@@ -28,7 +32,7 @@ const useList = (resource: string, offset = 0, limit = 20) =>
   );
 
 const usePokemonList = (offset?: number, limit?: number) =>
-  useList('/pokemon', offset, limit);
+  useList("/pokemon", offset, limit);
 
 const usePokemon = (name: string) =>
   useSWR(`/pokemon/${name}`, fetcher<Pokemon>());
@@ -39,12 +43,37 @@ const useAbility = (name: string) =>
 const useAbilityList = (offset = 0, limit = 2000) =>
   useList("/ability", offset, limit);
 
+const useFilteredPokemonList = (abilities: string[], offset = 0, limit = 20) =>
+  useSWR(
+    [`/pokemon?offset=${offset}&limit=${limit}&abilities=${abilities}`],
+    async () => {
+      let pokemons: string[] = [];
+      for (const ability of abilities) {
+        if (pokemons.length >= offset + limit) break;
+        const abilityPokemons = await pokemonClient
+          .getAbilityByName(ability)
+          .then((a) => a.pokemon.map((p) => p.pokemon.name));
+        // @ts-ignore
+        pokemons = [...new Set(abilityPokemons.concat(pokemons))];
+      }
+
+      console.log(pokemons);
+      return {
+        count: pokemons.length,
+        next: "",
+        previous: "",
+        results: pokemons
+          .slice(offset, limit + offset)
+          .map((name) => ({ name, url: "" })),
+      } as NamedAPIResourceList;
+    }
+  );
 
 export default fetcher;
-
 export {
   usePokemonList,
   usePokemon,
+  useAbilityList,
   useAbility,
-  useAbilityList
+  useFilteredPokemonList,
 };

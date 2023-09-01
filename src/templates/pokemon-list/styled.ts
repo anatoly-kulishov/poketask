@@ -1,10 +1,9 @@
 import styled from "@emotion/styled";
 
 export const ListContainer = styled.div`
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: .5rem;
+  display: grid;
+  grid-template-columns: repeat(5, auto);
+  grid-gap: .5rem;
 `;
 
 export const PokemonContainer = styled.div`
@@ -14,7 +13,7 @@ export const PokemonContainer = styled.div`
     height: 15rem;
     display: flex;
     flex-direction: column;
-    padding: 1rem;
+    padding: 0.5rem;
     align-items: center;
     justify-content:center;
     gap: .5rem;
